@@ -9,7 +9,9 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--cream);
  background:linear-gradient(#0b2e23,#14543f 60%,#0b2e23);min-height:100vh;overflow-x:hidden}
-.banner{width:100%;height:clamp(110px,28vw,260px);object-fit:cover;object-position:center 30%;display:block;border-bottom:4px solid var(--gold)}
+.ban{position:relative;max-width:560px;margin:0 auto;border-bottom:4px solid var(--gold)}
+.ban img{width:100%;display:block}
+.ban svg{position:absolute;pointer-events:none;filter:drop-shadow(0 2px 2px #0006)}
 main{max-width:560px;margin:0 auto;padding:16px 16px 40px;text-align:center;position:relative;z-index:1}
 h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
 .deco{font-size:2rem;letter-spacing:.3em}
@@ -40,7 +42,7 @@ h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
 </head>
 <body>
 <div class="snow" id="snow"></div>
-<img class="banner" src="banner.jpg" alt="Primos Zandonadi">
+<div class="ban" id="ban"><img src="banner.jpg" alt="Primos Zandonadi"></div>
 <main>
   <div class="deco">🎅 🦌 🎄 🦌 🎅</div>
   <h1>Primos Zandonadi</h1>
@@ -183,6 +185,15 @@ $("baixar").onclick = async () => {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = `amigo-secreto-${nome}.png`; a.click();
 };
+
+// gorros: [centro x, base y, largura] em pixels da foto original (1600x1200)
+const HAT = '<svg viewBox="0 0 100 90"><path d="M10 78C14 40 40 10 78 16C70 30 80 55 92 78Z" fill="#d62f2f"/><rect x="4" y="68" width="92" height="22" rx="11" fill="#fff"/><circle cx="80" cy="14" r="10" fill="#fff"/></svg>';
+[[335,460,190],[598,490,150],[775,450,190],[910,405,170],[1080,195,200],
+ [830,595,130],[1010,515,180],[1040,640,115],[560,668,200],[1300,680,190]].forEach(([x, y, w]) => {
+  const d = document.createElement("div"); d.innerHTML = HAT; const s = d.firstChild;
+  s.style.cssText = `left:${(x - w / 2) / 16}%;top:${(y - w * 0.9) / 12}%;width:${w / 16}%`;
+  $("ban").appendChild(s);
+});
 
 // neve
 for (let i = 0; i < 25; i++) {
