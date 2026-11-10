@@ -33,6 +33,8 @@ h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
 .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .btn{flex:1 1 150px;border:0;border-radius:12px;padding:14px;font-size:1rem;font-weight:700;cursor:pointer;background:var(--red);color:#fff;min-height:48px}
 .btn.alt{background:var(--dark)}
+.btn.gold{background:var(--gold);color:#3b2300;flex-basis:100%}
+#somBtn{position:fixed;top:10px;right:10px;z-index:5;width:44px;height:44px;border-radius:50%;border:2px solid var(--gold);background:#0b2e23cc;color:#fff;font-size:1.3rem;cursor:pointer}
 .msg{margin-top:12px;min-height:1.4em;color:#ffd6d6;font-weight:600}
 .hidden{display:none}
 .snow{position:fixed;inset:0;pointer-events:none;z-index:0}
@@ -62,9 +64,13 @@ h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
     <div class="btns">
       <button class="btn" id="baixar">⬇️ Baixar imagem</button>
       <button class="btn alt" id="copiar">📋 Copiar nome</button>
+      <button class="btn gold" id="lista">👥 Ver quem já sorteou</button>
     </div>
   </div>
+  <button class="btn gold hidden" id="volta">⬅ Voltar ao meu resultado</button>
   <div class="msg" id="msg"></div>
+  <audio id="musica" src="musica.mp3" loop preload="none"></audio>
+  <button id="somBtn" aria-label="Ligar ou desligar a música">🔇</button>
 </main>
 
 <script>
@@ -116,20 +122,42 @@ async function iniciar() {
     // resultado salvo só vale se o banco ainda marca esse nome como sorteado (reset do organizador limpa)
     if (salvo && quem && lista.some(p => p.nome === quem && p.sorteou)) { escolhido = quem; return mostrar(salvo); }
     try { localStorage.clear(); } catch (e) {}
-    $("chips").innerHTML = "";
-    lista.forEach(p => {
-      const b = document.createElement("button");
-      // verde = já sorteou; não clica (o resultado é secreto)
-      b.className = "chip" + (p.sorteou ? " done" : ""); b.disabled = p.sorteou; b.textContent = (p.sorteou ? "✓ " : "") + p.nome;
-      b.onclick = () => {
-        escolhido = p.nome; $("dice").disabled = false;
-        document.querySelectorAll(".chip").forEach(c => c.classList.toggle("sel", c === b));
-        $("msg").textContent = "";
-      };
-      $("chips").appendChild(b);
-    });
+    desenharChips(lista, false);
   } catch (e) { $("msg").textContent = "Não consegui carregar a lista. Tente recarregar a página."; }
 }
+
+// verde = já sorteou, não clica (o resultado é secreto). ver=true: só consulta, ninguém clica.
+function desenharChips(lista, ver) {
+  $("chips").innerHTML = "";
+  lista.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "chip" + (p.sorteou ? " done" : ""); b.disabled = ver || p.sorteou;
+    b.textContent = (p.sorteou ? "✓ " : "") + p.nome;
+    b.onclick = () => {
+      escolhido = p.nome; $("dice").disabled = false;
+      document.querySelectorAll(".chip").forEach(c => c.classList.toggle("sel", c === b));
+      $("msg").textContent = "";
+    };
+    $("chips").appendChild(b);
+  });
+}
+
+$("lista").onclick = async () => {
+  try {
+    desenharChips(await rpc("amigo_lista"), true);
+    $("card").classList.add("hidden"); $("chips").classList.remove("hidden"); $("volta").classList.remove("hidden");
+    $("msg").textContent = "";
+  } catch (e) { $("msg").textContent = "Não consegui carregar a lista. Tente de novo."; }
+};
+$("volta").onclick = () => {
+  $("chips").classList.add("hidden"); $("volta").classList.add("hidden"); $("card").classList.remove("hidden");
+};
+
+// música: navegadores só tocam depois de um toque; começa no primeiro toque, o botão liga/desliga
+const mus = $("musica"); let mudo = false; mus.volume = 0.5;
+function atualizaMus() { $("somBtn").textContent = mus.paused ? "🔇" : "🔊"; }
+$("somBtn").onclick = e => { e.stopPropagation(); mudo = !mus.paused; mudo ? mus.pause() : mus.play().catch(() => {}); atualizaMus(); };
+document.addEventListener("pointerdown", () => { if (!mudo && mus.paused) mus.play().then(atualizaMus).catch(() => {}); }, { once: true });
 
 $("dice").onclick = async () => {
   if (!escolhido) return;
