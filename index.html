@@ -77,7 +77,8 @@ const foto = n => `fotos/${n.toLowerCase()}.jpg`;
 let escolhido = null;
 
 const ERROS = {
-  ip_ja_usado: "Este aparelho/rede já fez um sorteio. Cada IP só pode sortear uma vez.",
+  ip_ja_usado: "Esta rede já fez 5 sorteios, que é o limite por IP. Fale com o organizador.",
+  sem_opcao: "Não foi possível sortear agora. Fale com o organizador.",
   nome_ja_sorteou: "Esse nome já sorteou em outro aparelho.",
   nome_invalido: "Nome não encontrado.",
   sem_ip: "Não consegui identificar sua conexão. Tente de novo."
