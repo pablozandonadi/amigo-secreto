@@ -19,7 +19,7 @@ h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px}
 .chip{border:2px solid var(--gold);background:#ffffff14;color:var(--cream);border-radius:999px;padding:10px 16px;font-size:1rem;cursor:pointer;min-height:44px}
 .chip.sel{background:var(--gold);color:#3b2300;font-weight:700}
-.chip[disabled]{opacity:.4;text-decoration:line-through;cursor:not-allowed}
+.chip.done{background:#2e9e5b;border-color:#2e9e5b;color:#fff}
 .dice{font-size:min(30vw,150px);line-height:1;background:none;border:0;cursor:pointer;filter:drop-shadow(0 6px 10px #0008)}
 .dice:disabled{opacity:.35;cursor:not-allowed}
 .dice.roll{animation:roll .9s ease-in-out}
@@ -104,19 +104,22 @@ function mostrar(amigo) {
   $("visual").innerHTML = '<div class="emoji">🎁</div>';
   $("card").classList.remove("hidden");
   $("card").dataset.amigo = amigo;
-  try { localStorage.setItem("amigo", amigo); } catch (e) {}
+  try { localStorage.setItem("amigo", amigo); localStorage.setItem("quem", escolhido || ""); } catch (e) {}
 }
 
 async function iniciar() {
-  let salvo = null;
-  try { salvo = localStorage.getItem("amigo"); } catch (e) {}
-  if (salvo) return mostrar(salvo);
+  let salvo = null, quem = null;
+  try { salvo = localStorage.getItem("amigo"); quem = localStorage.getItem("quem"); } catch (e) {}
   try {
     const lista = await rpc("amigo_lista");
+    // resultado salvo só vale se o banco ainda marca esse nome como sorteado (reset do organizador limpa)
+    if (salvo && quem && lista.some(p => p.nome === quem && p.sorteou)) { escolhido = quem; return mostrar(salvo); }
+    try { localStorage.clear(); } catch (e) {}
     $("chips").innerHTML = "";
     lista.forEach(p => {
       const b = document.createElement("button");
-      b.className = "chip"; b.textContent = p.nome; b.disabled = p.sorteou;
+      // verde = já sorteou; continua clicável para rever o resultado no mesmo aparelho
+      b.className = "chip" + (p.sorteou ? " done" : ""); b.textContent = (p.sorteou ? "✓ " : "") + p.nome;
       b.onclick = () => {
         escolhido = p.nome; $("dice").disabled = false;
         document.querySelectorAll(".chip").forEach(c => c.classList.toggle("sel", c === b));
