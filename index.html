@@ -27,7 +27,7 @@ h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
 .go{display:block;font-size:1.3rem;font-weight:800;color:var(--gold)}
 .card{background:var(--cream);color:#3b1d10;border-radius:20px;padding:20px;margin-top:10px;box-shadow:0 8px 24px #0009;border:4px dashed var(--red)}
 .card .lbl{font-size:.95rem;opacity:.75}
-.foto{width:130px;height:130px;border-radius:50%;object-fit:cover;border:5px solid var(--red);margin:10px auto;display:block;background:#fff}
+.foto{width:130px;height:130px;border-radius:50%;border:5px solid var(--red);margin:10px auto;display:block;background:#fff}
 .emoji{font-size:80px;margin:6px 0}
 .nome{font-size:2.4rem;font-weight:800;color:var(--red);margin:.1em 0 .4em}
 .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
@@ -118,10 +118,14 @@ function mostrar(amigo) {
   $("chips").classList.add("hidden");
   $("nome").textContent = amigo;
   $("visual").innerHTML = "";
-  const img = new Image();
-  img.className = "foto"; img.alt = amigo; img.src = foto(amigo);
-  img.onload = () => $("visual").replaceChildren(img);
   $("visual").innerHTML = '<div class="emoji">🎁</div>';
+  carregar(foto(amigo)).then(i => {
+    if (!i || $("card").dataset.amigo !== amigo) return;
+    const c = document.createElement("canvas"); c.width = c.height = 260; c.className = "foto";
+    const [sx, sy, s] = recorte(i, amigo);
+    c.getContext("2d").drawImage(i, sx, sy, s, s, 0, 0, 260, 260);
+    $("visual").replaceChildren(c);
+  });
   $("card").classList.remove("hidden");
   $("card").dataset.amigo = amigo;
   // O resultado NÃO fica salvo no aparelho (vários primos usam o mesmo computador):
@@ -213,6 +217,19 @@ $("copiar").onclick = async () => {
   $("msg").textContent = "Nome copiado! 🎄";
 };
 
+// centro do rosto [x, y] e lado do recorte quadrado, em pixels de cada foto original
+const ROSTO = {
+  alexia: [105, 110, 190], angelina: [170, 190, 300], enrico: [205, 165, 330], enzo: [135, 220, 340],
+  esther: [78, 45, 90], hellen: [310, 290, 480], iago: [250, 265, 450], isabella: [178, 190, 370],
+  isadora: [100, 105, 190], leonardo: [160, 150, 273], luiza: [225, 150, 330], manu: [265, 185, 380],
+  olivia: [150, 115, 270], pablo: [130, 140, 240], rafael: [185, 160, 380]
+};
+function recorte(i, nome) {
+  const f = ROSTO[nome.toLowerCase()] || [i.width / 2, i.height * 0.35, Math.min(i.width, i.height)];
+  const s = Math.min(f[2], i.width, i.height), cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  return [cl(f[0] - s / 2, 0, i.width - s), cl(f[1] - s / 2, 0, i.height - s), s];
+}
+
 function carregar(src) {
   return new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 }
@@ -229,8 +246,8 @@ async function desenhar(nome, comFoto) {
   const img = comFoto ? await carregar(foto(nome)) : null;
   if (img) {
     g.save(); g.beginPath(); g.arc(540, 640, 230, 0, Math.PI * 2); g.clip();
-    const s = Math.max(460 / img.width, 460 / img.height);
-    g.drawImage(img, 540 - img.width * s / 2, 640 - img.height * s / 2, img.width * s, img.height * s);
+    const [sx, sy, s] = recorte(img, nome);
+    g.drawImage(img, sx, sy, s, s, 310, 410, 460, 460);
     g.restore(); g.lineWidth = 12; g.strokeStyle = "#c0392b"; g.beginPath(); g.arc(540, 640, 230, 0, Math.PI * 2); g.stroke();
   } else { g.font = "300px serif"; g.fillText("🎁", 540, 740); }
   g.fillStyle = "#fff8ec"; g.font = "bold 140px sans-serif"; g.fillText(nome, 540, 1030);
