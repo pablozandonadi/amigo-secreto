@@ -170,11 +170,10 @@ function desenharChips(lista, ver) {
 
 $("fechar").onclick = encerrar;
 
-// música: navegadores só tocam depois de um toque; começa no primeiro toque, o botão liga/desliga
-const mus = $("musica"); let mudo = false; mus.volume = 0.5;
+// música: começa desligada; só toca quando a pessoa aperta o botão
+const mus = $("musica"); let mudo = true; mus.volume = 0.5;
 function atualizaMus() { $("somBtn").textContent = mus.paused ? "🔇" : "🔊"; }
 $("somBtn").onclick = e => { e.stopPropagation(); mudo = !mus.paused; mudo ? mus.pause() : mus.play().catch(() => {}); atualizaMus(); };
-document.addEventListener("pointerdown", () => { if (!mudo && mus.paused) mus.play().then(atualizaMus).catch(() => {}); }, { once: true });
 
 // o dado só pede confirmação; o sorteio acontece em "Sim, sou eu"
 $("dice").onclick = () => {
