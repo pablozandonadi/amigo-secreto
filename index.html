@@ -34,6 +34,8 @@ h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
 .btn{flex:1 1 150px;border:0;border-radius:12px;padding:14px;font-size:1rem;font-weight:700;cursor:pointer;background:var(--red);color:#fff;min-height:48px}
 .btn.alt{background:var(--dark)}
 .btn.gold{background:var(--gold);color:#3b2300;flex-basis:100%}
+.timer{margin-top:12px;font-size:.9rem;opacity:.8}
+#confirma{margin-top:14px}#confirma .nome{margin:.1em 0}
 #somBtn{position:fixed;top:10px;right:10px;z-index:5;width:44px;height:44px;border-radius:50%;border:2px solid var(--gold);background:#0b2e23cc;color:#fff;font-size:1.3rem;cursor:pointer}
 .msg{margin-top:12px;min-height:1.4em;color:#ffd6d6;font-weight:600}
 .hidden{display:none}
@@ -64,10 +66,19 @@ h1{font-size:clamp(1.6rem,7vw,2.4rem);margin:.3em 0 0;text-shadow:0 2px 0 #000a}
     <div class="btns">
       <button class="btn" id="baixar">⬇️ Baixar imagem</button>
       <button class="btn alt" id="copiar">📋 Copiar nome</button>
-      <button class="btn gold" id="lista">👥 Ver quem já sorteou</button>
+      <button class="btn gold" id="fechar">✅ Já anotei, voltar ao início</button>
+    </div>
+    <div class="timer">Esta tela fecha sozinha em <b id="seg">60</b>s</div>
+  </div>
+  <div class="card hidden" id="confirma">
+    <div class="lbl">Confirme: você é</div>
+    <div class="nome" id="quem"></div>
+    <div class="lbl">Depois de sortear não dá para voltar atrás.</div>
+    <div class="btns">
+      <button class="btn" id="sim">Sim, sou eu 🎲</button>
+      <button class="btn alt" id="nao">Trocar de nome</button>
     </div>
   </div>
-  <button class="btn gold hidden" id="volta">⬅ Voltar ao meu resultado</button>
   <div class="msg" id="msg"></div>
   <audio id="musica" src="musica.mp3" loop preload="none"></audio>
   <button id="somBtn" aria-label="Ligar ou desligar a música">🔇</button>
@@ -111,19 +122,34 @@ function mostrar(amigo) {
   $("visual").innerHTML = '<div class="emoji">🎁</div>';
   $("card").classList.remove("hidden");
   $("card").dataset.amigo = amigo;
-  try { localStorage.setItem("amigo", amigo); localStorage.setItem("quem", escolhido || ""); } catch (e) {}
+  // O resultado NÃO fica salvo no aparelho (vários primos usam o mesmo computador):
+  // a tela fecha sozinha em 60s e apaga tudo.
+  const fim = Date.now() + 60000;
+  clearInterval(relogio);
+  $("seg").textContent = 60;
+  relogio = setInterval(() => {
+    const s = Math.ceil((fim - Date.now()) / 1000);
+    $("seg").textContent = Math.max(s, 0);
+    if (s <= 0) encerrar();
+  }, 500);
+}
+
+let relogio = null;
+function encerrar() {
+  clearInterval(relogio);
+  $("nome").textContent = ""; $("visual").innerHTML = ""; delete $("card").dataset.amigo;
+  $("card").classList.add("hidden");
+  $("msg").textContent = "";
+  iniciar();
 }
 
 async function iniciar() {
-  let salvo = null, quem = null;
-  try { salvo = localStorage.getItem("amigo"); quem = localStorage.getItem("quem"); } catch (e) {}
-  try {
-    const lista = await rpc("amigo_lista");
-    // resultado salvo só vale se o banco ainda marca esse nome como sorteado (reset do organizador limpa)
-    if (salvo && quem && lista.some(p => p.nome === quem && p.sorteou)) { escolhido = quem; return mostrar(salvo); }
-    try { localStorage.clear(); } catch (e) {}
-    desenharChips(lista, false);
-  } catch (e) { $("msg").textContent = "Não consegui carregar a lista. Tente recarregar a página."; }
+  escolhido = null; $("dice").disabled = true;
+  $("confirma").classList.add("hidden");
+  $("sorteio").classList.remove("hidden"); $("chips").classList.remove("hidden");
+  try { localStorage.removeItem("amigo"); localStorage.removeItem("quem"); } catch (e) {} // resto de versões antigas
+  try { desenharChips(await rpc("amigo_lista"), false); }
+  catch (e) { $("msg").textContent = "Não consegui carregar a lista. Tente recarregar a página."; }
 }
 
 // verde = já sorteou, não clica (o resultado é secreto). ver=true: só consulta, ninguém clica.
@@ -142,16 +168,7 @@ function desenharChips(lista, ver) {
   });
 }
 
-$("lista").onclick = async () => {
-  try {
-    desenharChips(await rpc("amigo_lista"), true);
-    $("card").classList.add("hidden"); $("chips").classList.remove("hidden"); $("volta").classList.remove("hidden");
-    $("msg").textContent = "";
-  } catch (e) { $("msg").textContent = "Não consegui carregar a lista. Tente de novo."; }
-};
-$("volta").onclick = () => {
-  $("chips").classList.add("hidden"); $("volta").classList.add("hidden"); $("card").classList.remove("hidden");
-};
+$("fechar").onclick = encerrar;
 
 // música: navegadores só tocam depois de um toque; começa no primeiro toque, o botão liga/desliga
 const mus = $("musica"); let mudo = false; mus.volume = 0.5;
@@ -159,18 +176,29 @@ function atualizaMus() { $("somBtn").textContent = mus.paused ? "🔇" : "🔊";
 $("somBtn").onclick = e => { e.stopPropagation(); mudo = !mus.paused; mudo ? mus.pause() : mus.play().catch(() => {}); atualizaMus(); };
 document.addEventListener("pointerdown", () => { if (!mudo && mus.paused) mus.play().then(atualizaMus).catch(() => {}); }, { once: true });
 
-$("dice").onclick = async () => {
+// o dado só pede confirmação; o sorteio acontece em "Sim, sou eu"
+$("dice").onclick = () => {
   if (!escolhido) return;
+  $("quem").textContent = escolhido; $("msg").textContent = "";
+  $("sorteio").classList.add("hidden"); $("chips").classList.add("hidden"); $("confirma").classList.remove("hidden");
+};
+$("nao").onclick = () => {
+  $("confirma").classList.add("hidden"); $("sorteio").classList.remove("hidden"); $("chips").classList.remove("hidden");
+};
+$("sim").onclick = async () => {
+  if (!escolhido) return;
+  $("confirma").classList.add("hidden"); $("sorteio").classList.remove("hidden");
   $("dice").disabled = true; $("dice").classList.add("roll");
   const espera = new Promise(r => setTimeout(r, 900));
   try {
     const [res] = await Promise.all([rpc("amigo_sortear", { p_nome: escolhido }), espera]);
     $("dice").classList.remove("roll");
-    if (res.erro) { $("msg").textContent = ERROS[res.erro] || "Erro no sorteio."; return; }
+    if (res.erro) { iniciar(); $("msg").textContent = ERROS[res.erro] || "Erro no sorteio."; return; }
     mostrar(res.amigo);
   } catch (e) {
     $("dice").classList.remove("roll"); $("dice").disabled = false;
-    $("msg").textContent = "Falha de conexão. Tente de novo.";
+    $("chips").classList.remove("hidden");
+    $("msg").textContent = "Falha de conexão. Confira se aparece em verde antes de tentar de novo.";
   }
 };
 
